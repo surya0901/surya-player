@@ -29,9 +29,8 @@ export function parseServicePlaylist(input, service) {
   return null;
 }
 export function initialLibrary() {
-  return { playlists: [{ id: 'starter', name: 'Late-night rotation', tracks: [
-    { id: 'jfKfPfyJRdk', title: 'Lofi Girl · beats to relax / study to' },
-    { id: '4xDzrJKXOOY', title: 'Lofi Girl · beats to sleep / chill to' },
+  return { playlists: [{ id: 'starter', name: 'A little nostalgia', tracks: [
+    { id: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up · Rick Astley' },
   ] }], bookmarks: [] };
 }
 export function validateLibrary(data) {
@@ -54,7 +53,19 @@ export function validateLibrary(data) {
 }
 export function readLibrary(storage = localStorage) {
   const raw = storage.getItem(STORAGE_KEY);
-  return raw === null ? initialLibrary() : validateLibrary(JSON.parse(raw));
+  if (raw === null) return initialLibrary();
+  const library = validateLibrary(JSON.parse(raw));
+  const starter = library.playlists.find(p => p.id === 'starter');
+  if (starter) {
+    const legacy = new Set(['jfKfPfyJRdk', '4xDzrJKXOOY']);
+    const oldTracks = starter.tracks.filter(t => legacy.has(t.id) && t.title.startsWith('Lofi Girl · '));
+    if (oldTracks.length) {
+      starter.tracks = starter.tracks.filter(t => !oldTracks.includes(t));
+      if (!starter.tracks.some(t => t.id === 'dQw4w9WgXcQ')) starter.tracks.unshift({ id: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up · Rick Astley' });
+      if (starter.name === 'Late-night rotation') starter.name = 'A little nostalgia';
+    }
+  }
+  return library;
 }
 export function addTracks(playlist, input, title = '') {
   const lines = input.trim().split(/\s+/).filter(Boolean);
