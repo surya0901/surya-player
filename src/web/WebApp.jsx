@@ -73,7 +73,7 @@ export default function WebApp() {
     if (library.playlists.length >= 100) return setNotice('The library can hold up to 100 playlists.');
     const id = crypto.randomUUID();
     setLibrary(prev => ({ ...prev, playlists: [...prev.playlists, { id, name, tracks: [] }] }));
-    setSelectedId(id); setTrackIndex(0); setPlayerOpen(true); setNewName(''); setNotice(`Created “${name}”. Add a YouTube link below.`);
+    setSelectedId(id); setTrackIndex(0); setNewName(''); setNotice(`Created “${name}”. Add a YouTube link below.`);
   }
   function addVideo(event) {
     event.preventDefault();
@@ -179,7 +179,7 @@ export default function WebApp() {
             <button type="button" className="open-player-button" onClick={() => setPlayerOpen(true)} aria-label="Open vinyl player">↗ &nbsp; Open vinyl player</button>
             <div className="theme-switch"><span>COLORWAY</span><button onClick={() => setTheme('pink')} className={theme === 'pink' ? 'active' : ''} aria-label="Pink theme"><i className="swatch pink-swatch"/> Pink</button><button onClick={() => setTheme('blue')} className={theme === 'blue' ? 'active' : ''} aria-label="Blue theme"><i className="swatch blue-swatch"/> Blue</button></div>
           </div>
-          <p className="small-print">Open the vinyl player to control playback. Spotify and Apple Music use their official players inside the window.</p>
+          <p className="small-print">Open the vinyl player to control playback. Tap the service badge on the player to show Spotify, Apple Music, or YouTube media controls.</p>
         </aside>
       </div>
     </main>{playerOpen && <PopoutPlayer service={service} theme={theme} track={current} playlistName={service === 'youtube' ? playlist?.name : activeBookmark?.name || appleLibraryName} embedUrl={selectedEmbed} appleLibraryTrack={activeAppleTrack} playing={playing} onPlaying={setPlaying} onClose={closePlayer} onStep={step} />}<footer className="site-footer"><span>Made with ☾ and a lot of music.</span><span>Surya Player · 2026</span></footer>

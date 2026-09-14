@@ -2,7 +2,7 @@
 
 A pixel-art music player for the web. [Try the live demo](https://surya0901.github.io/surya-player/) or run the desktop app locally.
 
-The demo opens with a starter YouTube playlist. Choose **YouTube** to create playlists and paste video links; the playlists stay in your browser. Choose **Spotify** or **Apple Music** to paste a shared playlist link. Selecting a playlist opens a vinyl player window with playback controls inside: YouTube has custom play, pause, skip and seek buttons, while Spotify and Apple Music use their official playlist controls in the window. When account access is configured, Spotify users can browse their own playlists and Apple Music users can browse and play supported library songs.
+The demo opens with a starter YouTube playlist. Choose **YouTube** to create playlists and paste video links; the playlists stay in your browser. Choose **Spotify** or **Apple Music** to paste a shared playlist link. Selecting a playlist opens a compact pixel-art vinyl player based on the original desktop design. YouTube has play, pause, skip, and seek buttons on the player. Tap the service badge to expand the official YouTube video or Spotify/Apple Music playlist controls when needed. When account access is configured, Spotify users can browse their own playlists and Apple Music users can browse and play supported library songs.
 
 ## Run the browser demo locally
 
