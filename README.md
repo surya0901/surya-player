@@ -2,9 +2,11 @@
 
 A pixel-art music player for the web. [Try the live demo](https://surya0901.github.io/surya-player/) or run the desktop app locally.
 
-The demo opens with a starter YouTube playlist. Choose **YouTube** to create playlists and paste video links; the playlists stay in your browser. Choose **Spotify** or **Apple Music** to paste a shared playlist link. Selecting a playlist opens a compact pixel-art vinyl player based on the original desktop design. YouTube has play, pause, skip, and seek buttons on the player. Tap the service badge to expand the official YouTube video or Spotify/Apple Music playlist controls when needed. When account access is configured, Spotify users can browse their own playlists and Apple Music users can browse and play supported library songs.
+Built by [Surya Gopinath](https://github.com/surya0901).
 
-The browser demo uses the blue turntable. Press **Next** or **Previous** to watch the record swap while the player stays in place. On YouTube, hold the vinyl to temporarily slow the song, drag it to scrub, or tap the speed badge to change playback speed. Spotify supports play/pause and scrubbing through its compact official embed inside the player; its audio speed cannot be changed here. Apple Music shared playlists use Apple's official player inside the window, while connected library songs can be played from the vinyl controls.
+The demo opens with a starter YouTube playlist. Choose **YouTube** to create playlists and paste video links; the playlists stay in your browser. Choose **Spotify** or **Apple Music** to paste a shared playlist link for a preview, or connect your own account (see setup below) to browse and play your real playlists in full. Selecting a playlist opens a compact pixel-art vinyl player based on the original desktop design, with a tap-to-jump queue behind the settings gear.
+
+The browser demo uses the blue turntable. Press **Next** or **Previous** to skip tracks — real skip control for YouTube and connected Spotify/Apple Music accounts, or a hand-off to the service's own player for unauthenticated Spotify/Apple links. On YouTube, hold the vinyl to temporarily slow the song, drag it to scrub, or tap the speed badge to change playback speed. Connected Spotify accounts play full tracks through the vinyl controls directly, with drag-to-scrub and no ads — that requires the visitor's account to have Premium (see below). Apple Music library songs likewise play through the vinyl controls when connected.
 
 ## Run the browser demo locally
 
@@ -19,13 +21,49 @@ npm run vite
 
 Open `http://127.0.0.1:5173/`. To check a production build, run `npm test` and `npm run build`.
 
-## Account connections
+## Set up your own account connections
 
-**Spotify.** Create a Spotify app, add `http://127.0.0.1:5173/` and `https://surya0901.github.io/surya-player/` as exact redirect URIs, and put its client ID in `VITE_SPOTIFY_CLIENT_ID` locally or as a GitHub Actions repository **variable**. Spotify’s development mode restricts authenticated users to the app’s allowlist; the app owner must meet Spotify’s developer requirements. Shared playlist embeds work for visitors without OAuth. This integration uses PKCE and browser session storage; no client secret is shipped.
+Without any setup, the demo already works: paste a public Spotify or Apple Music playlist link for a preview-only embed, or build a YouTube playlist (full playback, no login needed). The steps below are only for wiring up **real, full-length, ad-free playback** through a visitor's own logged-in account — this requires your own developer credentials for each service, since they're tied to your Spotify/Apple developer account.
 
-**Apple Music.** MusicKit requires an Apple developer token signed with a private key. Set `VITE_APPLE_MUSIC_DEVELOPER_TOKEN` in `.env.local` or as a GitHub Actions repository **secret** to enable account connection. The signed developer token is included in the browser bundle, as MusicKit requires; **never put the `.p8` signing key in the browser or repository**. Renew the token before it expires. An Apple Music subscription may be needed for full playback. Shared playlist embeds work without this setup.
+### Spotify (real full-track playback via the Web Playback SDK)
 
-The demo does not extract music from one service to play it through another. Spotify and Apple Music playback uses their official players. YouTube playback uses the official YouTube player; owners can disable embedding for individual videos.
+1. Create an app at the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+2. In its **Settings → Redirect URIs**, add these exact URIs (no trailing-slash differences — Spotify matches exact strings):
+   ```
+   http://127.0.0.1:5173/
+   https://<your-github-username>.github.io/surya-player/
+   ```
+3. Copy the **Client ID** and set it as `VITE_SPOTIFY_CLIENT_ID` — either in a local `.env` file, or as a GitHub Actions repository **variable** if you're deploying via the included workflow.
+4. Spotify apps start in **Development Mode**, which only lets allow-listed accounts connect. In **Settings → User Management**, add the email of anyone you want to be able to log in (including yourself).
+5. **Whoever connects needs Spotify Premium.** This is a rule enforced by Spotify's Web Playback SDK, not something this app can bypass — a free account can authorize but won't get full-length audio.
+
+No client secret is involved: this uses the PKCE OAuth flow, safe to run entirely in the browser, with tokens kept in `sessionStorage`.
+
+### Apple Music (browse + play your library)
+
+1. Generate a MusicKit private key and developer token, signed with your Apple Developer account (see [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) for the exact steps to create the key).
+2. Set the signed token as `VITE_APPLE_MUSIC_DEVELOPER_TOKEN` — locally in `.env.local`, or as a GitHub Actions repository **secret** for deployment. The signed token itself ships in the browser bundle, which is expected for MusicKit; **never commit the `.p8` signing key file** — only the signed token derived from it.
+3. Whoever connects needs an active Apple Music subscription for full playback; the token only grants library access.
+4. Tokens expire — plan to regenerate and redeploy before yours does.
+
+### YouTube (browse + play your own playlists)
+
+Paste-a-link playback needs zero setup. Connecting your own account additionally lets you import your own playlists — the easiest of the three to set up: no client secret, no subscription requirement, no long-lived tokens to manage.
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/), create (or pick) a project and enable the **YouTube Data API v3** under **APIs & Services → Library**.
+2. Under **APIs & Services → Credentials → Create Credentials → OAuth client ID**, choose **Web application**.
+3. Under **Authorized JavaScript origins**, add:
+   ```
+   http://127.0.0.1:5173
+   https://<your-github-username>.github.io
+   ```
+   (Origins only — no path, no trailing slash. This is different from Spotify's redirect URIs.)
+4. Copy the **Client ID** and set it as `VITE_YOUTUBE_CLIENT_ID` — locally in `.env`, or as a GitHub Actions repository **variable** for deployment.
+5. If your OAuth consent screen is in **Testing** mode, add the email of anyone who should be able to connect under **Audience → Test users**; publish the app to allow anyone.
+
+This uses Google Identity Services' token model, built for exactly this case (browser-only, no backend): it hands back a short-lived (~1 hour) access token directly, with no client secret and no refresh token to protect. A visitor just reconnects if their session runs out.
+
+The demo never routes one service's audio through another (e.g. never plays a Spotify track via a YouTube stream) — each service always plays through its own official player or SDK.
 
 ## GitHub Pages
 

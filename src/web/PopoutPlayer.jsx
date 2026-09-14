@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import YouTubePlayer from './YouTubePlayer.jsx';
 import SpotifyEmbed from './SpotifyEmbed.jsx';
+import SpotifyPlayer from './SpotifyPlayer.jsx';
 import { getMusicKit } from '../apple/auth.js';
 import blueFrame from '../../assets/blue/frame.png';
 import blueOverlay from '../../assets/blue/frame_no_background.png';
@@ -18,12 +19,13 @@ import bluePause from '../../assets/blue/pause_button.png';
 import blueProgress from '../../assets/blue/progress_bar.png';
 import blueAlbum from '../../assets/blue/album_frame.png';
 import blueExit from '../../assets/blue/exit_button.png';
+import blueSettings from '../../assets/blue/settings.png';
 
 const vinylFrames = [blueVinyl1, blueVinyl2, blueVinyl3, blueVinyl4];
-const assets = { frame: blueFrame, overlay: blueOverlay, plant: bluePlant, record: blueRecord, needle: blueNeedle, previous: bluePrevious, next: blueNext, play: bluePlay, pause: bluePause, progress: blueProgress, album: blueAlbum, exit: blueExit };
+const assets = { frame: blueFrame, overlay: blueOverlay, plant: bluePlant, record: blueRecord, needle: blueNeedle, previous: bluePrevious, next: blueNext, play: bluePlay, pause: bluePause, progress: blueProgress, album: blueAlbum, exit: blueExit, settings: blueSettings };
 const time = value => { const n = Math.floor(value || 0); return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`; };
 
-export default function PopoutPlayer({ service, track, playlistName, embedUrl, appleLibraryTrack, playing, onPlaying, onClose, onStep }) {
+export default function PopoutPlayer({ service, track, spotifyTrack, playlistName, embedUrl, externalUrl, appleLibraryTrack, playing, onPlaying, onClose, onStep, queue }) {
   const youtube = useRef(null);
   const spotify = useRef(null);
   const closeButton = useRef(null);
@@ -34,15 +36,30 @@ export default function PopoutPlayer({ service, track, playlistName, embedUrl, a
   closeAction.current = onClose;
   const [progress, setProgress] = useState({ current: 0, duration: 0 });
   const [controlsOpen, setControlsOpen] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
   const [swapping, setSwapping] = useState(false);
   const [braking, setBraking] = useState(false);
   const [scrubPreview, setScrubPreview] = useState(null);
   const [speed, setSpeed] = useState(1);
   const [rates, setRates] = useState([0.5, 1, 1.5]);
   const [vinylFrame, setVinylFrame] = useState(0);
-  const title = service === 'youtube' ? track?.title : appleLibraryTrack?.title || playlistName;
-  const hasMedia = service === 'youtube' ? !!track : !!embedUrl || !!appleLibraryTrack;
+  const [spotifyMeta, setSpotifyMeta] = useState(null);
+  const [spotifyNotice, setSpotifyNotice] = useState('');
+  const spotifyMode = service === 'spotify' && spotifyTrack ? 'sdk' : 'embed';
+  const title = service === 'youtube' ? track?.title : service === 'spotify' ? spotifyMode === 'sdk' ? spotifyTrack.title : spotifyMeta?.title || playlistName : appleLibraryTrack?.title || playlistName;
+  const hasMedia = service === 'youtube' ? !!track : service === 'spotify' ? spotifyMode === 'sdk' || !!embedUrl : !!embedUrl || !!appleLibraryTrack;
   const serviceName = service === 'apple' ? 'Apple Music' : service === 'spotify' ? 'Spotify' : 'YouTube';
+  useEffect(() => { setSpotifyMeta(null); lastSpotifyTrack.current = null; }, [embedUrl]);
+  function spotifyTrackChanged(uri) {
+    if (lastSpotifyTrack.current && uri && uri !== lastSpotifyTrack.current) animateSwap();
+    lastSpotifyTrack.current = uri;
+    const id = uri?.startsWith('spotify:track:') ? uri.slice('spotify:track:'.length) : null;
+    if (!id) return;
+    fetch(`https://open.spotify.com/oembed?url=https://open.spotify.com/track/${id}`)
+      .then(response => response.ok ? response.json() : null)
+      .then(data => data && setSpotifyMeta({ title: data.title, artwork: data.thumbnail_url }))
+      .catch(() => {});
+  }
   useEffect(() => {
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -65,10 +82,18 @@ export default function PopoutPlayer({ service, track, playlistName, embedUrl, a
     swapTimer.current = setTimeout(() => setSwapping(false), 760);
   }
   function changeSong(delta) {
-    if (service !== 'youtube') return setControlsOpen(true);
-    animateSwap();
-    setProgress({ current: 0, duration: 0 });
-    onStep(delta);
+    if (service === 'youtube' || service === 'spotify' && spotifyMode === 'sdk') {
+      animateSwap();
+      setProgress({ current: 0, duration: 0 });
+      onStep(delta);
+      return;
+    }
+    if (service === 'apple' && queue?.length) {
+      const index = queue.findIndex(item => item.active);
+      const next = queue[(index + delta + queue.length) % queue.length];
+      if (next) return jumpTo(next);
+    }
+    setControlsOpen(true);
   }
   function toggle() {
     if (service === 'youtube') {
@@ -76,7 +101,7 @@ export default function PopoutPlayer({ service, track, playlistName, embedUrl, a
       youtube.current?.toggle();
     } else if (service === 'spotify') {
       if (playing) spotify.current?.pause();
-      else { setControlsOpen(true); spotify.current?.play(); }
+      else spotify.current?.play();
     } else if (appleLibraryTrack && getMusicKit()) {
       const mk = getMusicKit();
       Promise.resolve(playing ? mk.pause() : mk.play()).then(() => onPlaying(!playing)).catch(() => {});
@@ -92,6 +117,17 @@ export default function PopoutPlayer({ service, track, playlistName, embedUrl, a
     if (controlsOpen && service === 'spotify' && playing) spotify.current?.pause();
     if (controlsOpen && service === 'youtube' && playing) youtube.current?.pause();
     setControlsOpen(open => !open);
+    setQueueOpen(false);
+  }
+  function toggleQueue() {
+    setQueueOpen(open => !open);
+    setControlsOpen(false);
+  }
+  function jumpTo(item) {
+    animateSwap();
+    setProgress({ current: 0, duration: 0 });
+    setQueueOpen(false);
+    item.onSelect();
   }
   function cycleSpeed() {
     const allowed = rates.filter(rate => rate >= 0.5 && rate <= 1.5);
@@ -149,14 +185,16 @@ export default function PopoutPlayer({ service, track, playlistName, embedUrl, a
         <img className="mini-layer mini-decoration" src={assets.plant} alt="" />
         <div className="mini-window-title">surya player</div>
         <img className="mini-layer mini-ui" src={assets.exit} alt="" />
+        <img className="mini-layer mini-ui" src={assets.settings} alt="" />
         <button ref={closeButton} className="mini-close" aria-label="Close vinyl player" onClick={onClose} />
+        <button className="mini-settings" aria-label="Queue and playlist" aria-expanded={queueOpen} onClick={toggleQueue} />
         <button className="mini-service-pill" onClick={toggleServiceControls} aria-expanded={controlsOpen}>{serviceName.toUpperCase()} {controlsOpen ? '⌃' : '⌄'}</button>
         {service === 'youtube' && <button className="mini-speed" onClick={cycleSpeed} aria-label={`Playback speed ${speed} times. Change speed`}>{speed}x speed</button>}
         {(service === 'youtube' || service === 'spotify' && progress.duration > 0) && <div className="mini-platter-touch" role="button" tabIndex={0} aria-label={service === 'youtube' ? 'Touch and hold the vinyl to slow playback; drag to scrub' : 'Drag the vinyl to scrub the song'} onPointerDown={touchDown} onPointerMove={touchMove} onPointerUp={touchUp} onPointerCancel={touchCancel} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); } }} />}
         {scrubPreview !== null && <div className="mini-scrub-note">SCRUB {time(scrubPreview)}</div>}
-        <div className="mini-artwork">{service === 'youtube' && track ? <img src={`https://i.ytimg.com/vi/${track.id}/mqdefault.jpg`} alt="" /> : <span>♫</span>}</div>
+        <div className="mini-artwork">{service === 'youtube' && track ? <img src={`https://i.ytimg.com/vi/${track.id}/mqdefault.jpg`} alt="" /> : service === 'spotify' && spotifyMode === 'sdk' && spotifyTrack.art ? <img src={spotifyTrack.art} alt="" /> : service === 'spotify' && spotifyMeta?.artwork ? <img src={spotifyMeta.artwork} alt="" /> : <span>♫</span>}</div>
         <img className="mini-layer mini-album-frame" src={assets.album} alt="" />
-        <div className="mini-track"><span>now playing...</span><strong title={title}>{title || 'Your playlist'}</strong><small title={playlistName}>{service === 'youtube' ? playlistName : appleLibraryTrack?.artist || serviceName}</small></div>
+        <div className="mini-track"><span>now playing...</span><strong title={title}>{title || 'Your playlist'}</strong><small title={playlistName}>{service === 'youtube' ? playlistName : service === 'spotify' && spotifyMode === 'sdk' ? spotifyTrack.artist || playlistName : appleLibraryTrack?.artist || serviceName}</small></div>
         <img className="mini-layer mini-ui mini-transport-art" src={assets.previous} alt="" />
         <img className="mini-layer mini-ui mini-transport-art" src={playing ? assets.pause : assets.play} alt="" />
         <img className="mini-layer mini-ui mini-transport-art" src={assets.next} alt="" />
@@ -170,10 +208,18 @@ export default function PopoutPlayer({ service, track, playlistName, embedUrl, a
         <div className={`mini-service-drawer ${controlsOpen ? 'open' : ''}`} aria-hidden={!controlsOpen}>
         <div className="mini-drawer-head"><strong>{serviceName} playback</strong><button onClick={toggleServiceControls} aria-label="Hide service player">⌃</button></div>
         {service === 'youtube' && track && <YouTubePlayer ref={youtube} key={track.id} track={track} onEnded={() => changeSong(1)} onPlaying={onPlaying} onProgress={setProgress} onRatesReady={setRates} />}
-        {service === 'spotify' && embedUrl && <SpotifyEmbed ref={spotify} embedUrl={embedUrl} onPlaying={onPlaying} onProgress={setProgress} onTrackChange={uri => { if (lastSpotifyTrack.current && uri && uri !== lastSpotifyTrack.current) animateSwap(); lastSpotifyTrack.current = uri; }} />}
+        {service === 'spotify' && spotifyMode === 'sdk' && <SpotifyPlayer ref={spotify} uri={spotifyTrack.uri} onPlaying={onPlaying} onProgress={setProgress} onEnded={() => changeSong(1)} onError={setSpotifyNotice} />}
+        {service === 'spotify' && spotifyMode === 'sdk' && <p className="mini-drawer-note">{spotifyNotice || 'Playing full tracks with your connected Spotify account.'}</p>}
+        {service === 'spotify' && spotifyMode === 'embed' && embedUrl && <SpotifyEmbed ref={spotify} embedUrl={embedUrl} onPlaying={onPlaying} onProgress={setProgress} onTrackChange={spotifyTrackChanged} />}
         {service === 'apple' && embedUrl && <iframe title={`${playlistName} Apple Music player`} src={embedUrl} allow="encrypted-media; fullscreen" referrerPolicy="strict-origin-when-cross-origin" />}
         {appleLibraryTrack && <p className="mini-drawer-note">Playing through your Apple Music library. Use the buttons on the vinyl player.</p>}
         {!hasMedia && <p className="mini-drawer-note">Add a song or choose a saved playlist first.</p>}
+        </div>
+        <div className={`mini-queue-panel ${queueOpen ? 'open' : ''}`} aria-hidden={!queueOpen}>
+          <div className="mini-drawer-head"><strong>Queue{playlistName ? ` · ${playlistName}` : ''}</strong><button onClick={toggleQueue} aria-label="Hide queue">⌃</button></div>
+          {queue?.length ? <div className="mini-queue-list">{queue.map((item, i) => <button key={item.key} className={`mini-queue-item ${item.active ? 'active' : ''}`} onClick={() => jumpTo(item)}><span className="mini-queue-index">{String(i + 1).padStart(2, '0')}</span><span className="mini-queue-text"><strong>{item.title}</strong>{item.subtitle && <small>{item.subtitle}</small>}</span></button>)}</div>
+            : <p className="mini-drawer-note">{service === 'youtube' ? 'Add songs to this playlist to build a queue.' : `Connect ${serviceName} to browse the full queue here.`}</p>}
+          {service !== 'youtube' && externalUrl && <a className="mini-queue-external" href={externalUrl} target="_blank" rel="noreferrer">Open playlist in {serviceName} ↗</a>}
         </div>
       </div>
     </section>
