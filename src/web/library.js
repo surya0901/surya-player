@@ -1,5 +1,6 @@
 export const STORAGE_KEY = 'surya-player-web-v1';
 const videoId = /^[\w-]{11}$/;
+const starterTrack = { id: 'K4DyBUG242c', title: 'On & On · Cartoon, Jéja' };
 export function parseYouTubeUrl(input) {
   try {
     const url = new URL(input.trim());
@@ -30,7 +31,7 @@ export function parseServicePlaylist(input, service) {
 }
 export function initialLibrary() {
   return { playlists: [{ id: 'starter', name: 'A little nostalgia', tracks: [
-    { id: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up · Rick Astley' },
+    starterTrack,
   ] }], bookmarks: [] };
 }
 export function validateLibrary(data) {
@@ -58,10 +59,12 @@ export function readLibrary(storage = localStorage) {
   const starter = library.playlists.find(p => p.id === 'starter');
   if (starter) {
     const legacy = new Set(['jfKfPfyJRdk', '4xDzrJKXOOY']);
-    const oldTracks = starter.tracks.filter(t => legacy.has(t.id) && t.title.startsWith('Lofi Girl · '));
+    const oldTracks = starter.tracks.filter(t =>
+      (legacy.has(t.id) && t.title.startsWith('Lofi Girl · ')) ||
+      (t.id === 'dQw4w9WgXcQ' && t.title === 'Never Gonna Give You Up · Rick Astley'));
     if (oldTracks.length) {
       starter.tracks = starter.tracks.filter(t => !oldTracks.includes(t));
-      if (!starter.tracks.some(t => t.id === 'dQw4w9WgXcQ')) starter.tracks.unshift({ id: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up · Rick Astley' });
+      if (!starter.tracks.some(t => t.id === starterTrack.id)) starter.tracks.unshift(starterTrack);
       if (starter.name === 'Late-night rotation') starter.name = 'A little nostalgia';
     }
   }
