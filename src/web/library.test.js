@@ -11,10 +11,10 @@ describe('browser playlist links', () => {
   });
   it('deduplicates a batch of videos and preserves the existing playlist', () => {
     const playlist = initialLibrary().playlists[0];
-    const next = addTracks(playlist, 'https://youtu.be/jfKfPfyJRdk\nhttps://youtu.be/5qap5aO4i9A');
-    expect(next.tracks).toHaveLength(3);
-    expect(playlist.tracks).toHaveLength(2);
-    expect(() => addTracks(next, 'https://youtu.be/jfKfPfyJRdk')).toThrow(/already/);
+    const next = addTracks(playlist, 'https://youtu.be/dQw4w9WgXcQ\nhttps://youtu.be/jNQXAC9IVRw');
+    expect(next.tracks).toHaveLength(2);
+    expect(playlist.tracks).toHaveLength(1);
+    expect(() => addTracks(next, 'https://youtu.be/dQw4w9WgXcQ')).toThrow(/already/);
   });
   it('accepts only official Spotify and Apple Music playlist URLs', () => {
     expect(parseServicePlaylist('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=x', 'spotify')).toContain('/embed/playlist/');
