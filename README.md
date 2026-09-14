@@ -4,6 +4,8 @@ A pixel-art music player for the web. [Try the live demo](https://surya0901.gith
 
 The demo opens with a starter YouTube playlist. Choose **YouTube** to create playlists and paste video links; the playlists stay in your browser. Choose **Spotify** or **Apple Music** to paste a shared playlist link. Selecting a playlist opens a compact pixel-art vinyl player based on the original desktop design. YouTube has play, pause, skip, and seek buttons on the player. Tap the service badge to expand the official YouTube video or Spotify/Apple Music playlist controls when needed. When account access is configured, Spotify users can browse their own playlists and Apple Music users can browse and play supported library songs.
 
+The browser demo uses the blue turntable. Press **Next** or **Previous** to watch the record swap while the player stays in place. On YouTube, hold the vinyl to temporarily slow the song, drag it to scrub, or tap the speed badge to change playback speed. Spotify supports play/pause and scrubbing through its compact official embed inside the player; its audio speed cannot be changed here. Apple Music shared playlists use Apple's official player inside the window, while connected library songs can be played from the vinyl controls.
+
 ## Run the browser demo locally
 
 Requires Node.js 22 or newer.

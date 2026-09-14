@@ -4,13 +4,9 @@ import { STORAGE_KEY, addTracks, initialLibrary, parseServicePlaylist, readLibra
 import { connectSpotify, disconnectSpotify, finishSpotifyLogin, spotifyConfigured, spotifyConnected, spotifyPlaylists } from './spotify.js';
 import { login as appleLogin, logout as appleLogout, initMusicKit, getMusicKit } from '../apple/auth.js';
 import { fetchMyPlaylists as applePlaylists, fetchPlaylistTracks as appleTracks } from '../apple/api.js';
-import pinkScene from '../../assets/pink/frame.png';
 import blueScene from '../../assets/blue/frame.png';
-import pinkRecord from '../../assets/pink/record_player.png';
 import blueRecord from '../../assets/blue/record_player.png';
-import pinkVinyl from '../../assets/animations/record-pink/frame-1.png';
 import blueVinyl from '../../assets/animations/record-blue/frame-1.png';
-import pinkNeedle from '../../assets/animations/pink/needle-playing/frame-1.png';
 import blueNeedle from '../../assets/animations/blue/needle-playing/frame-1.png';
 import './web.css';
 
@@ -30,7 +26,6 @@ export default function WebApp() {
   const initial = useMemo(safeRead, []);
   const [library, setLibrary] = useState(initial.library);
   const [service, setService] = useState('youtube');
-  const [theme, setTheme] = useState(() => localStorage.getItem('surya-theme') === 'blue' ? 'blue' : 'pink');
   const [selectedId, setSelectedId] = useState(library.playlists[0]?.id || null);
   const [trackIndex, setTrackIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -55,7 +50,6 @@ export default function WebApp() {
   const selectedEmbed = activeBookmark && parseServicePlaylist(activeBookmark.url, service);
 
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(library)); } catch { setNotice('Browser storage is full; new changes may not persist.'); } }, [library]);
-  useEffect(() => { localStorage.setItem('surya-theme', theme); }, [theme]);
   useEffect(() => {
     finishSpotifyLogin().then(ok => {
       if (ok) { setSpotifyReady(true); setService('spotify'); setNotice('Spotify connected. Choose one of your playlists below.'); }
@@ -144,10 +138,10 @@ export default function WebApp() {
     if (service === 'apple' && activeAppleTrack) getMusicKit()?.pause().catch(() => {});
   }
   function switchService(id) { closePlayer(); setService(id); setActiveBookmark(null); setActiveAppleTrack(null); setConnectedPlaylists([]); setNotice(''); }
-  return <div className={`web-app ${theme}`}>
+  return <div className="web-app blue">
     <header className="site-header"><a className="brand" href="./" aria-label="Surya Player home"><span>✳</span> surya<span className="brand-accent">player</span></a><div className="header-right"><span className="live-dot" /> interactive music demo <a className="github-link" href="https://github.com/surya0901/surya-player" target="_blank" rel="noreferrer">View code ↗</a></div></header>
     <main className="workspace">
-      <section className="intro"><div className="eyebrow">A LITTLE MUSIC CORNER · BY SURYA</div><h1>Your playlists,<br/><em>your kind of player.</em></h1><p>Pick a service. Bring a playlist. Or make your own mix from YouTube links. The vinyl is ready when you are.</p></section>
+      <section className="intro"><div className="eyebrow">A LITTLE MUSIC CORNER · BY SURYA</div><h1>Your playlists,<br/><em>your kind of player.</em></h1><p>Bring your favorite playlist to a turntable you can touch. Swap records, drag the vinyl to scrub, and slow down a YouTube song with your hand.</p><div className="feature-tags"><span>✦ Drag to scrub</span><span>✦ Hold to slow</span><span>✦ Watch records swap</span></div></section>
       <div className="workspace-grid">
         <div className="left-column">
           <div className="service-heading"><span className="step-number">01</span><div><h2>Choose your music</h2><p>Three ways to make this space yours</p></div></div>
@@ -174,14 +168,13 @@ export default function WebApp() {
           </section>
         </div>
         <aside className="player-column"><div className="player-heading"><span className="step-number">03</span><div><h2>Press play</h2><p>A tiny record shop on your screen</p></div></div>
-          <div className="player-shell"><div className="pixel-window" style={{ backgroundImage: `url(${theme === 'pink' ? pinkScene : blueScene})` }}><div className="pixel-title">surya player <span>✧</span></div><img className="record-base" src={theme === 'pink' ? pinkRecord : blueRecord} alt=""/><img className={`record-vinyl ${playing ? 'spinning' : ''}`} src={theme === 'pink' ? pinkVinyl : blueVinyl} alt=""/><img className="record-needle" src={theme === 'pink' ? pinkNeedle : blueNeedle} alt=""/></div>
+          <div className="player-shell"><div className="pixel-window" style={{ backgroundImage: `url(${blueScene})` }}><div className="pixel-title">surya player <span>✧</span></div><img className="record-base" src={blueRecord} alt=""/><img className={`record-vinyl ${playing ? 'spinning' : ''}`} src={blueVinyl} alt=""/><img className="record-needle" src={blueNeedle} alt=""/></div>
             <div className="player-meta"><span className="micro-label">NOW PLAYING · {service.toUpperCase()}</span><strong>{service === 'youtube' ? current?.title || 'Your next favorite song' : activeBookmark?.name || 'Choose a playlist'}</strong><span>{service === 'youtube' ? playlist?.name || 'Your playlist' : service === 'spotify' ? 'Spotify playlist' : 'Apple Music playlist'}</span></div>
             <button type="button" className="open-player-button" onClick={() => setPlayerOpen(true)} aria-label="Open vinyl player">↗ &nbsp; Open vinyl player</button>
-            <div className="theme-switch"><span>COLORWAY</span><button onClick={() => setTheme('pink')} className={theme === 'pink' ? 'active' : ''} aria-label="Pink theme"><i className="swatch pink-swatch"/> Pink</button><button onClick={() => setTheme('blue')} className={theme === 'blue' ? 'active' : ''} aria-label="Blue theme"><i className="swatch blue-swatch"/> Blue</button></div>
           </div>
           <p className="small-print">Open the vinyl player to control playback. Tap the service badge on the player to show Spotify, Apple Music, or YouTube media controls.</p>
         </aside>
       </div>
-    </main>{playerOpen && <PopoutPlayer service={service} theme={theme} track={current} playlistName={service === 'youtube' ? playlist?.name : activeBookmark?.name || appleLibraryName} embedUrl={selectedEmbed} appleLibraryTrack={activeAppleTrack} playing={playing} onPlaying={setPlaying} onClose={closePlayer} onStep={step} />}<footer className="site-footer"><span>Made with ☾ and a lot of music.</span><span>Surya Player · 2026</span></footer>
+    </main>{playerOpen && <PopoutPlayer service={service} track={current} playlistName={service === 'youtube' ? playlist?.name : activeBookmark?.name || appleLibraryName} embedUrl={selectedEmbed} appleLibraryTrack={activeAppleTrack} playing={playing} onPlaying={setPlaying} onClose={closePlayer} onStep={step} />}<footer className="site-footer"><span>Made with ☾ and a lot of music.</span><span>Surya Player · 2026</span></footer>
   </div>;
 }
