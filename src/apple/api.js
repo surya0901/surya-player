@@ -71,6 +71,5 @@ export async function fetchPlaylistTracks(playlistId) {
         ? window.MusicKit.formatArtworkURL(t.attributes.artwork, 300, 300)
         : null,
       uri: `apple:track:${t.id}`,
-      ...(t.attributes.playParams?.catalogId || t.attributes.playParams?.globalId ? { catalogId: t.attributes.playParams.catalogId || t.attributes.playParams.globalId } : {}),
     }));
 }

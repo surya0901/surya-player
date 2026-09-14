@@ -1,74 +1,179 @@
-# Surya Player
+# surya music player
 
-A pixel-art music player for the web. [Try the live demo](https://surya0901.github.io/surya-player/) or run the desktop app locally.
+A pixel-art desktop music player built with Electron, Vite, and React.
 
-Built by [Surya Gopinath](https://github.com/surya0901).
+## Features
 
-The demo opens with a starter YouTube playlist. Choose **YouTube** to create playlists and paste video links; the playlists stay in your browser. Choose **Spotify** or **Apple Music** to paste a shared playlist link for a preview, or connect your own account (see setup below) to browse and play your real playlists in full. Selecting a playlist opens a compact pixel-art vinyl player based on the original desktop design, with a tap-to-jump queue behind the settings gear.
+- Pixel-art UI with animated record player, spinning vinyl, and needle
+- Record swap animation on song change (pink/blue vinyl alternation)
+- Interactive progress bar with draggable star indicator
+- Marquee scrolling for long track titles
+- Pink and blue theme switching with persistent preference
+- Spotify integration — browse your playlists and play tracks via yt-dlp
+- Apple Music integration — browse your library playlists via MusicKit JS
+- YouTube playlists — paste any public playlist URL (no sign-in) or sign in with Google to browse your own
+- Local MP3 playback
+- Custom frameless window with drag and resize
+- Dynamic dock/taskbar icon that matches the active theme
 
-The browser demo uses the blue turntable. Press **Next** or **Previous** to skip tracks — real skip control for YouTube and connected Spotify/Apple Music accounts, or a hand-off to the service's own player for unauthenticated Spotify/Apple links. On YouTube, hold the vinyl to temporarily slow the song, drag it to scrub, or tap the speed badge to change playback speed. Connected Spotify accounts play full tracks through the vinyl controls directly, with drag-to-scrub and no ads — that requires the visitor's account to have Premium (see below). Apple Music library songs likewise play through the vinyl controls when connected.
-
-## Run the browser demo locally
-
-Requires Node.js 22 or newer.
+## Getting Started
+You only need 4 commands. Copy them one at a time:
 
 ```bash
-git clone https://github.com/surya0901/surya-player.git
-cd surya-player
-npm ci --ignore-scripts
-npm run vite
+# 1. Download the code
+git clone https://github.com/surya0901/surya-music-player.git
+
+# 2. Step INTO the folder you just downloaded (this step is required!)
+cd surya-music-player
+
+# 3. Set up the app (installs deps, downloads the yt-dlp binary, and
+#    auto-checks/repairs the Electron binary issue some hit on Windows)
+npm run setup
+
+# 4. Run the app in dev mode
+npm run dev
 ```
 
-Open `http://127.0.0.1:5173/`. To check a production build, run `npm test` and `npm run build`.
+`npm run setup` is the recommended one-command setup — it installs dependencies, downloads the yt-dlp binary, and automatically checks for and repairs the Electron binary issue that can otherwise break `npm run dev` on Windows. If anything was off, just re-run `npm run setup`. (Plain `npm install` still works too.)
 
-## Set up your own account connections
+> Hitting an Electron `path.txt` / "failed to install correctly" error, or streaming not working? See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — including the manual Electron binary fix for too-new Node versions.
 
-Without any setup, the demo already works: paste a public Spotify or Apple Music playlist link for a preview-only embed, or build a YouTube playlist (full playback, no login needed). The steps below are only for wiring up **real, full-length, ad-free playback** through a visitor's own logged-in account — this requires your own developer credentials for each service, since they're tied to your Spotify/Apple developer account.
 
-### Spotify (real full-track playback via the Web Playback SDK)
+### Prerequisites
 
-1. Create an app at the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
-2. In its **Settings → Redirect URIs**, add these exact URIs (no trailing-slash differences — Spotify matches exact strings):
+Before the commands above will work, you need these installed:
+
+| Tool | Why | Install link |
+|------|-----|--------------|
+| **Node.js 18 or newer** | Runs `npm` and the app's build tools | [nodejs.org](https://nodejs.org/) — download the LTS version |
+| **Git** | Used by the `git clone` command above | [git-scm.com](https://git-scm.com/downloads) — usually pre-installed on macOS/Linux |
+
+To check if you already have them, run:
+
+```bash
+node --version    # should print v18.x.x or higher
+npm --version     # should print 9.x or higher
+git --version     # should print git version 2.x.x
+```
+
+If any of those says "command not found," install that tool first.
+
+> No Python is needed. The `npm install` step automatically downloads a standalone `yt-dlp` binary for your OS into the project's `bin/` folder.
+
+---
+
+
+## Adding Local Audio Files
+
+The local playlist is driven by a single file, `playlist.json`, that lives next to your audio files. Drop your songs into the audio folder, list them in the JSON, and the player picks them up.
+
+### Where the audio folder lives
+
+- **Running from source (dev):** `audio/` in the project root.
+- **Installed app (macOS):** `~/Library/Application Support/Surya Player/audio/`
+- **Installed app (Windows):** `%APPDATA%\Surya Player\audio\`
+- **Installed app (Linux):** `~/.config/Surya Player/audio/`
+
+On first launch, the installed app seeds this folder with the bundled defaults. After that it's yours to edit — the app never overwrites it.
+
+### Building your playlist
+
+1. Drop `.mp3` files into the audio folder.
+2. Open `playlist.json` in the same folder and add one entry per song:
+
+   ```json
+   [
+     { "file": "my-song.mp3", "title": "My Song", "artist": "Some Artist", "album": "Album Name", "art": "https://example.com/cover.jpg" },
+     { "file": "another.mp3", "title": "Another Song", "artist": "Someone Else" }
+   ]
    ```
-   http://127.0.0.1:5173/
-   https://<your-github-username>.github.io/surya-player/
-   ```
-3. Copy the **Client ID** and set it as `VITE_SPOTIFY_CLIENT_ID` — either in a local `.env` file, or as a GitHub Actions repository **variable** if you're deploying via the included workflow.
-4. Spotify apps start in **Development Mode**, which only lets allow-listed accounts connect. In **Settings → User Management**, add the email of anyone you want to be able to log in (including yourself).
-5. **Whoever connects needs Spotify Premium.** This is a rule enforced by Spotify's Web Playback SDK, not something this app can bypass — a free account can authorize but won't get full-length audio.
 
-No client secret is involved: this uses the PKCE OAuth flow, safe to run entirely in the browser, with tokens kept in `sessionStorage`.
+   - `file` and `title` are required.
+   - `artist`, `album`, and `art` are optional. `art` is a URL to a cover image.
+   - The `file` value must match the mp3 filename exactly (spaces and case included).
 
-### Apple Music (browse + play your library)
+3. In the app, hit the settings icon and the local tab is selected by default. Reload the app to pick up new edits — `playlist.json` is read on launch.
 
-1. Generate a MusicKit private key and developer token, signed with your Apple Developer account (see [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) for the exact steps to create the key).
-2. Set the signed token as `VITE_APPLE_MUSIC_DEVELOPER_TOKEN` — locally in `.env.local`, or as a GitHub Actions repository **secret** for deployment. The signed token itself ships in the browser bundle, which is expected for MusicKit; **never commit the `.p8` signing key file** — only the signed token derived from it.
-3. Whoever connects needs an active Apple Music subscription for full playback; the token only grants library access.
-4. Tokens expire — plan to regenerate and redeploy before yours does.
+### Supported formats
 
-### YouTube (browse + play your own playlists)
+`.mp3`, `.m4a`, `.aac`, `.flac`, `.wav`, `.ogg`, `.opus`.
 
-Paste-a-link playback needs zero setup. Connecting your own account additionally lets you import your own playlists — the easiest of the three to set up: no client secret, no subscription requirement, no long-lived tokens to manage.
+## Spotify Setup
 
-1. In the [Google Cloud Console](https://console.cloud.google.com/), create (or pick) a project and enable the **YouTube Data API v3** under **APIs & Services → Library**.
-2. Under **APIs & Services → Credentials → Create Credentials → OAuth client ID**, choose **Web application**.
-3. Under **Authorized JavaScript origins**, add:
-   ```
-   http://127.0.0.1:5173
-   https://<your-github-username>.github.io
-   ```
-   (Origins only — no path, no trailing slash. This is different from Spotify's redirect URIs.)
-4. Copy the **Client ID** and set it as `VITE_YOUTUBE_CLIENT_ID` — locally in `.env`, or as a GitHub Actions repository **variable** for deployment.
-5. If your OAuth consent screen is in **Testing** mode, add the email of anyone who should be able to connect under **Audience → Test users**; publish the app to allow anyone.
+Stream any track from your Spotify playlists. Audio is fetched from YouTube via yt-dlp.
 
-This uses Google Identity Services' token model, built for exactly this case (browser-only, no backend): it hands back a short-lived (~1 hour) access token directly, with no client secret and no refresh token to protect. A visitor just reconnects if their session runs out.
+> **Note:** As of February 2026, Spotify requires the developer account that creates the app to have an active Premium subscription ([announcement](https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security)). Without it, the Spotify API returns 403 for all users.
 
-The demo never routes one service's audio through another (e.g. never plays a Spotify track via a YouTube stream) — each service always plays through its own official player or SDK.
+1. Create a Spotify app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)
+2. Add `http://127.0.0.1:5173/callback` as a redirect URI
+3. Copy `.env.example` to `.env` and add your Client ID
+4. Add yourself under Settings > User Management
+5. Click the settings icon in the player > log in
 
-## GitHub Pages
+See [SPOTIFY_SETUP.md](SPOTIFY_SETUP.md) for detailed instructions and troubleshooting.
 
-The workflow in `.github/workflows/pages.yml` tests, builds, and deploys each push to `main`. In repository **Settings → Pages**, choose **GitHub Actions** as the build and deployment source. The live site will be `https://surya0901.github.io/surya-player/` after the first successful deployment. Spotify and Apple account connections remain optional; the link-based demo works immediately.
+## Apple Music Setup
 
-## Desktop version
+Browse your Apple Music library playlists. Requires an Apple Developer account. **Apple Music subscription is not required for playback.**
 
-The original Electron player and its pixel art assets remain in this repository. `npm run dev` launches the desktop shell and Vite together; see [SPOTIFY_SETUP.md](SPOTIFY_SETUP.md), [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md), [YOUTUBE_SETUP.md](YOUTUBE_SETUP.md), and [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for its original setup. The browser demo is the default Vite entry point; Electron loads the separate `desktop.html` entry.
+1. Create a MusicKit key at [developer.apple.com/account/resources/authkeys](https://developer.apple.com/account/resources/authkeys/list)
+2. Download the `.p8` key file and place it in the project root
+3. Add `APPLE_TEAM_ID` and `APPLE_KEY_ID` to your `.env`
+4. Click the settings icon > switch to apple > log in
+
+See [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) for detailed instructions and troubleshooting.
+
+## YouTube Setup
+
+Two flows — pick whichever you want by configuring (or not) your `.env`. **No YouTube Premium / no subscription required** in either case.
+
+**Paste any public playlist URL** (zero setup):
+
+1. Click the settings icon in the player > switch to youtube
+2. Paste a YouTube/YouTube Music playlist URL into the box
+3. Hit `load playlist`
+
+**Browse your own playlists** (requires Google OAuth setup):
+
+1. Create a Google Cloud project at [console.cloud.google.com](https://console.cloud.google.com/), enable **YouTube Data API v3**
+2. Configure the OAuth consent screen (External, add yourself as a test user, scope `youtube.readonly`)
+3. Create OAuth credentials of type **Desktop app**
+4. Add `VITE_YOUTUBE_CLIENT_ID` and `VITE_YOUTUBE_CLIENT_SECRET` to your `.env`
+5. Click the settings icon > switch to youtube > log in with google
+
+The sign-in option only appears when `VITE_YOUTUBE_CLIENT_ID` is set; otherwise the URL-paste box shows instead.
+
+See [YOUTUBE_SETUP.md](YOUTUBE_SETUP.md) for detailed instructions and troubleshooting.
+
+## Build
+
+```bash
+npm run package
+```
+
+### Install as Desktop App
+
+**macOS:**
+```bash
+cp -r "out/mac-arm64/Surya Player.app" /Applications/
+```
+
+**Windows:** Run the installer from `out/Surya Player Setup.exe`. If `npm run package` fails at the NSIS step with "Cannot create symbolic link," enable **Developer Mode** in Settings → System → For developers, then re-run. The unpacked app at `out/win-unpacked/Surya Player.exe` is fully runnable in the meantime — no installer required.
+
+**Linux:** Run the AppImage from `out/`.
+
+> Note: The macOS build is unsigned. On first launch you may need to right-click > Open, or go to System Settings > Privacy & Security to allow it.
+
+## Tech Stack
+
+- **Electron** — desktop app shell (frameless window, IPC, system tray)
+- **Vite** — build tool and dev server
+- **React** — UI framework
+- **HTML5 Audio** — local MP3 playback
+- **yt-dlp** — YouTube audio streaming for Spotify/Apple/YouTube tracks; also fetches public YouTube playlist contents via `--flat-playlist`
+- **Spotify Web API** — playlist and metadata fetching (OAuth PKCE)
+- **Apple MusicKit JS** — library playlist access (JWT auth)
+- **YouTube Data API v3** — sign-in browsing of the user's own playlists (Google OAuth PKCE, free quota)
+- **CSS** — custom properties for theming, calc-based responsive scaling
+- **Node.js** — main process (JWT generation, yt-dlp execution)
+- **jsonwebtoken** — Apple Music developer token generation
