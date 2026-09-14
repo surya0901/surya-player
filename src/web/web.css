@@ -6,3 +6,29 @@
 .mini-service-drawer .spotify-api-embed iframe{height:80px!important;width:100%!important;border:0;border-radius:7px}
 .mini-service-drawer.spotify-drawer iframe{height:80px!important;width:100%!important;border:0;border-radius:7px}
 .mini-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:rgba(29,27,39,.75);backdrop-filter:blur(8px)}
+.feature-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:19px}.feature-tags span{border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--deep);padding:8px 11px;font-size:11px;font-weight:800}.mini-disc.spinning{animation:record-spin 2.8s linear infinite}.mini-disc.braking{filter:brightness(.9)}.mini-platter-touch{position:absolute;z-index:9;left:28%;top:38%;width:44%;height:23%;border-radius:50%;cursor:grab;touch-action:none}.mini-platter-touch:active{cursor:grabbing}.mini-platter-touch:focus-visible{outline:3px dashed var(--accent)}.mini-speed{position:absolute;z-index:10;right:7%;top:61%;border:1px solid #b5d2e1;border-radius:5px;background:#d9e9ee;color:#285d69;padding:3px 6px;font:12px Rainyhearts,monospace;box-shadow:1px 2px 0 #7899ac}.mini-scrub-note{position:absolute;z-index:11;left:32%;top:58%;padding:4px 7px;background:#203f50;color:#e8f6f5;border-radius:4px;font:12px Rainyhearts,monospace}.mini-vinyl.record-swapping{animation:vinyl-swap .76s cubic-bezier(.4,0,.2,1) both}@keyframes vinyl-swap{0%{transform:translateX(0) rotate(0);opacity:1}42%{transform:translateX(-115%) rotate(-7deg);opacity:0}43%{transform:translateX(115%) rotate(7deg);opacity:0}100%{transform:translateX(0) rotate(0);opacity:1}}.mini-needle.lifted{transform:translateX(-50%) rotate(-8deg);transform-origin:70% 80%}@media(prefers-reduced-motion:reduce){.mini-vinyl.record-swapping{animation:none}.mini-disc.spinning{animation:none}}
+.mini-dialog{scrollbar-width:none}.mini-dialog::-webkit-scrollbar{display:none}.mini-gesture-hint{position:absolute;z-index:8;left:7%;width:86%;bottom:2%;text-align:center;font:10px Rainyhearts,monospace;letter-spacing:.02em;color:#2d6771}
+.mini-speed{font:10px Arial,sans-serif;font-weight:700}.mini-gesture-hint{bottom:3.1%;font:9px Arial,sans-serif;font-weight:700;letter-spacing:.03em}
+
+/* Keep every official service control within the original pixel-art window. */
+.mini-dialog{width:min(96vw,330px);overflow:hidden;filter:none;box-shadow:0 18px 30px rgba(0,0,0,.4)}
+.mini-vinyl{overflow:clip}
+.mini-service-drawer{position:absolute;z-index:12;left:7%;top:18%;width:86%;max-height:none;height:auto;margin:0;border:0;border-radius:5px;background:#d8e4fa;box-shadow:0 3px 0 #6f9bad;transition:opacity .18s ease,visibility .18s ease;opacity:0}
+.mini-service-drawer.open{max-height:none;overflow:hidden;visibility:visible;pointer-events:auto;opacity:1;margin:0;padding:6px;border:2px solid #91b9c8}
+.mini-drawer-head{height:19px;margin:0 2px 5px;font:11px Rainyhearts,monospace;color:#285d69}
+.mini-drawer-head button{font:17px Rainyhearts,monospace;color:#285d69;padding:0 3px}
+.mini-service-drawer iframe{max-width:100%;border-radius:3px}
+.service-spotify .mini-service-drawer{top:67%;min-height:28%;display:flex;flex-direction:column;justify-content:center}
+.service-spotify .mini-service-drawer .spotify-api-embed{width:100%;height:80px}
+.service-spotify .mini-service-drawer .spotify-api-embed.failed{display:none}
+.service-spotify .mini-service-drawer .spotify-api-embed iframe{height:80px!important;width:100%!important}
+.service-spotify .mini-service-drawer iframe{height:80px!important;width:100%!important}
+.service-spotify.controls-open .mini-artwork,.service-spotify.controls-open .mini-album-frame,.service-spotify.controls-open .mini-track,.service-spotify.controls-open .mini-transport-art,.service-spotify.controls-open .mini-progress-art,.service-spotify.controls-open .mini-hit,.service-spotify.controls-open .mini-seek,.service-spotify.controls-open .mini-times,.service-spotify.controls-open .mini-gesture-hint{visibility:hidden}
+.service-apple .mini-service-drawer{top:15%;max-height:78%}
+.service-apple .mini-service-drawer.open{max-height:78%;overflow:auto}
+.service-youtube .mini-service-drawer{top:17%}
+.service-youtube .mini-service-drawer .youtube-screen{min-height:200px}
+.mini-vinyl.record-swapping{animation:none}
+.mini-vinyl.record-swapping .mini-disc{animation:disc-change .76s cubic-bezier(.4,0,.2,1) both}
+@keyframes disc-change{0%{transform:translateX(-50%);opacity:1}42%{transform:translateX(-145%) translateY(-8%);opacity:0}43%{transform:translateX(45%) translateY(-8%);opacity:0}100%{transform:translateX(-50%);opacity:1}}
+@media(prefers-reduced-motion:reduce){.mini-vinyl.record-swapping .mini-disc{animation:none}}

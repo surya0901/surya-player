@@ -12,7 +12,7 @@ function loadSDK() {
   });
   return sdk;
 }
-const YouTubePlayer = forwardRef(function YouTubePlayer({ track, onEnded, onPlaying, onProgress }, ref) {
+const YouTubePlayer = forwardRef(function YouTubePlayer({ track, onEnded, onPlaying, onProgress, onRatesReady, onRateChange }, ref) {
   const host = useRef(null);
   const playerRef = useRef(null);
   useImperativeHandle(ref, () => ({
@@ -25,9 +25,10 @@ const YouTubePlayer = forwardRef(function YouTubePlayer({ track, onEnded, onPlay
       else player.playVideo();
     },
     seek: seconds => playerRef.current?.seekTo(seconds, true),
+    setRate: rate => playerRef.current?.setPlaybackRate(rate),
   }), []);
-  const callbacks = useRef({ onEnded, onPlaying, onProgress });
-  callbacks.current = { onEnded, onPlaying, onProgress };
+  const callbacks = useRef({ onEnded, onPlaying, onProgress, onRatesReady, onRateChange });
+  callbacks.current = { onEnded, onPlaying, onProgress, onRatesReady, onRateChange };
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -45,11 +46,13 @@ const YouTubePlayer = forwardRef(function YouTubePlayer({ track, onEnded, onPlay
         width: '100%', height: '100%', videoId: track.id,
         playerVars: { playsinline: 1, origin: location.origin, rel: 0 },
         events: {
-          onReady: () => { playerRef.current = player; },
+          onReady: () => { playerRef.current = player; callbacks.current.onRatesReady?.(player.getAvailablePlaybackRates()); },
           onStateChange: event => {
             callbacks.current.onPlaying(event.data === YT.PlayerState.PLAYING);
+            if (event.data === YT.PlayerState.PLAYING) callbacks.current.onRatesReady?.(player.getAvailablePlaybackRates());
             if (event.data === YT.PlayerState.ENDED) callbacks.current.onEnded();
           },
+          onPlaybackRateChange: event => callbacks.current.onRateChange?.(event.data),
           onError: () => { callbacks.current.onPlaying(false); setError('This video is unavailable here or its owner has disabled embedding. Try another video or open it on YouTube.'); },
         },
       });
