@@ -48,7 +48,7 @@ function loadMusicKitScript() {
 export async function initMusicKit() {
   if (musicKitInstance) return musicKitInstance;
 
-  const devToken = await window.cupid.getAppleMusicToken();
+  const devToken = window.cupid?.getAppleMusicToken ? await window.cupid.getAppleMusicToken() : import.meta.env.VITE_APPLE_MUSIC_DEVELOPER_TOKEN;
   if (!devToken) throw new Error('No Apple Music developer token — check your .env and .p8 key file');
 
   localStorage.setItem(DEVELOPER_TOKEN_KEY, devToken);
@@ -58,7 +58,7 @@ export async function initMusicKit() {
   musicKitInstance = await window.MusicKit.configure({
     developerToken: devToken,
     app: {
-      name: 'Cupid Player',
+      name: 'Surya Player',
       build: '1.0.0',
     },
   });
