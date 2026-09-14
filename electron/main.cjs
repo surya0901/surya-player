@@ -493,9 +493,9 @@ function createWindow() {
             const url = new URL(callbackUrl);
             let target;
             if (isDev) {
-              target = `http://127.0.0.1:5173/desktop.html${url.search}`;
+              target = `http://127.0.0.1:5173/${url.search}`;
             } else {
-              const fileUrl = pathToFileURL(path.join(__dirname, '..', 'dist', 'desktop.html'));
+              const fileUrl = pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html'));
               fileUrl.search = url.search;
               target = fileUrl.href;
             }
@@ -548,7 +548,7 @@ function createWindow() {
       if (parsed.pathname === '/callback' && parsed.searchParams.has('code')) {
         if (!isDev) {
           event.preventDefault();
-          const fileUrl = pathToFileURL(path.join(__dirname, '..', 'dist', 'desktop.html'));
+          const fileUrl = pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html'));
           fileUrl.search = parsed.search;
           win.loadURL(fileUrl.href);
         }
@@ -568,9 +568,9 @@ function createWindow() {
   });
 
   if (isDev) {
-    win.loadURL('http://127.0.0.1:5173/desktop.html');
+    win.loadURL('http://127.0.0.1:5173');
   } else {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'desktop.html'));
+    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
 }
 
