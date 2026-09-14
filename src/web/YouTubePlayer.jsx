@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 let sdk;
 function loadSDK() {
   if (window.YT?.Player) return Promise.resolve(window.YT);
@@ -12,14 +12,29 @@ function loadSDK() {
   });
   return sdk;
 }
-export default function YouTubePlayer({ track, onEnded, onPlaying }) {
+const YouTubePlayer = forwardRef(function YouTubePlayer({ track, onEnded, onPlaying, onProgress }, ref) {
   const host = useRef(null);
-  const callbacks = useRef({ onEnded, onPlaying });
-  callbacks.current = { onEnded, onPlaying };
+  const playerRef = useRef(null);
+  useImperativeHandle(ref, () => ({
+    play: () => playerRef.current?.playVideo(),
+    pause: () => playerRef.current?.pauseVideo(),
+    toggle: () => {
+      const player = playerRef.current;
+      if (!player) return;
+      if (player.getPlayerState() === window.YT?.PlayerState?.PLAYING) player.pauseVideo();
+      else player.playVideo();
+    },
+    seek: seconds => playerRef.current?.seekTo(seconds, true),
+  }), []);
+  const callbacks = useRef({ onEnded, onPlaying, onProgress });
+  callbacks.current = { onEnded, onPlaying, onProgress };
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false, player;
+    const ticker = setInterval(() => {
+      if (playerRef.current?.getCurrentTime) callbacks.current.onProgress?.({ current: playerRef.current.getCurrentTime(), duration: playerRef.current.getDuration() });
+    }, 500);
     setError('');
     callbacks.current.onPlaying(false);
     const mount = document.createElement('div');
@@ -30,6 +45,7 @@ export default function YouTubePlayer({ track, onEnded, onPlaying }) {
         width: '100%', height: '100%', videoId: track.id,
         playerVars: { playsinline: 1, origin: location.origin, rel: 0 },
         events: {
+          onReady: () => { playerRef.current = player; },
           onStateChange: event => {
             callbacks.current.onPlaying(event.data === YT.PlayerState.PLAYING);
             if (event.data === YT.PlayerState.ENDED) callbacks.current.onEnded();
@@ -38,8 +54,10 @@ export default function YouTubePlayer({ track, onEnded, onPlaying }) {
         },
       });
     }).catch(err => { if (!cancelled) setError(err.message); });
-    return () => { cancelled = true; player?.destroy(); callbacks.current.onPlaying(false); };
+    return () => { cancelled = true; clearInterval(ticker); playerRef.current = null; player?.destroy(); callbacks.current.onPlaying(false); };
   }, [track.id, attempt]);
   return <><div className="youtube-screen" ref={host} />{error && <div className="notice" role="alert">{error} <button onClick={() => setAttempt(a => a + 1)}>Retry</button></div>}
     <a className="external-link" href={`https://www.youtube.com/watch?v=${track.id}`} target="_blank" rel="noreferrer">Open on YouTube ↗</a></>;
-}
+});
+
+export default YouTubePlayer;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import YouTubePlayer from './YouTubePlayer.jsx';
+import PopoutPlayer from './PopoutPlayer.jsx';
 import { STORAGE_KEY, addTracks, initialLibrary, parseServicePlaylist, readLibrary } from './library.js';
 import { connectSpotify, disconnectSpotify, finishSpotifyLogin, spotifyConfigured, spotifyConnected, spotifyPlaylists } from './spotify.js';
 import { login as appleLogin, logout as appleLogout, initMusicKit, getMusicKit } from '../apple/auth.js';
@@ -34,6 +34,8 @@ export default function WebApp() {
   const [selectedId, setSelectedId] = useState(library.playlists[0]?.id || null);
   const [trackIndex, setTrackIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [activeAppleTrack, setActiveAppleTrack] = useState(null);
   const [newName, setNewName] = useState('');
   const [videoInput, setVideoInput] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
@@ -71,14 +73,14 @@ export default function WebApp() {
     if (library.playlists.length >= 100) return setNotice('The library can hold up to 100 playlists.');
     const id = crypto.randomUUID();
     setLibrary(prev => ({ ...prev, playlists: [...prev.playlists, { id, name, tracks: [] }] }));
-    setSelectedId(id); setTrackIndex(0); setNewName(''); setNotice(`Created “${name}”. Add a YouTube link below.`);
+    setSelectedId(id); setTrackIndex(0); setPlayerOpen(true); setNewName(''); setNotice(`Created “${name}”. Add a YouTube link below.`);
   }
   function addVideo(event) {
     event.preventDefault();
     if (!playlist) return setNotice('Create a playlist first.');
     try {
       const next = addTracks(playlist, videoInput, videoTitle);
-      updatePlaylist(next); setVideoInput(''); setVideoTitle(''); setNotice(`Added ${next.tracks.length - playlist.tracks.length} video${next.tracks.length - playlist.tracks.length === 1 ? '' : 's'} to “${playlist.name}”.`);
+      updatePlaylist(next); setTrackIndex(playlist.tracks.length); setPlayerOpen(true); setVideoInput(''); setVideoTitle(''); setNotice(`Added ${next.tracks.length - playlist.tracks.length} video${next.tracks.length - playlist.tracks.length === 1 ? '' : 's'} to “${playlist.name}”.`);
     } catch (err) { setNotice(err.message); }
   }
   function removePlaylist() {
@@ -91,7 +93,7 @@ export default function WebApp() {
     updatePlaylist({ ...playlist, tracks: playlist.tracks.filter((_, i) => i !== index) });
     setTrackIndex(i => Math.max(0, Math.min(i, playlist.tracks.length - 2))); setNotice('Video removed.');
   }
-  function choosePlaylist(id) { setSelectedId(id); setTrackIndex(0); setNotice(''); }
+  function choosePlaylist(id) { setSelectedId(id); setTrackIndex(0); setPlayerOpen(true); setNotice(''); }
   function step(delta) { if (playlist?.tracks.length) setTrackIndex(i => (i + delta + playlist.tracks.length) % playlist.tracks.length); }
   function saveBookmark(event) {
     event.preventDefault();
@@ -100,14 +102,14 @@ export default function WebApp() {
     if (library.bookmarks.some(b => b.url === url)) return setNotice('This playlist is already saved.');
     const item = { id: crypto.randomUUID(), service, name: clean(bookmarkName) || `Shared ${service === 'apple' ? 'Apple Music' : 'Spotify'} playlist`, url };
     setLibrary(prev => ({ ...prev, bookmarks: [...prev.bookmarks, item] }));
-    setActiveBookmark(item); setBookmarkName(''); setBookmarkUrl(''); setNotice('Playlist saved in this browser.');
+    setActiveBookmark(item); setPlayerOpen(true); setBookmarkName(''); setBookmarkUrl(''); setNotice('Playlist saved in this browser.');
   }
   function addConnected(item) {
     const url = item.url;
     if (!parseServicePlaylist(url, service)) return setNotice('This library playlist cannot be embedded. Open it in the music service instead.');
     const bookmark = { id: crypto.randomUUID(), service, name: clean(item.name), url };
     setLibrary(prev => prev.bookmarks.some(b => b.url === url) ? prev : { ...prev, bookmarks: [...prev.bookmarks, bookmark] });
-    setActiveBookmark(bookmark); setNotice('Playlist selected.');
+    setActiveBookmark(bookmark); setPlayerOpen(true); setNotice('Playlist selected.');
   }
   async function refreshSpotify() {
     setBusy(true);
@@ -134,10 +136,14 @@ export default function WebApp() {
   }
   async function playAppleTrack(track) {
     if (!track.catalogId) return setNotice('Apple Music cannot play this library-only track on the web.');
-    try { await getMusicKit().setQueue({ song: track.catalogId, startPlaying: true }); await getMusicKit().play(); setNotice(`Playing “${track.title}” with Apple Music.`); }
+    try { await getMusicKit().setQueue({ song: track.catalogId, startPlaying: true }); await getMusicKit().play(); setActiveAppleTrack(track); setPlayerOpen(true); setPlaying(true); setNotice(`Playing “${track.title}” with Apple Music.`); }
     catch (err) { setNotice(err.message); }
   }
-  function switchService(id) { setService(id); setActiveBookmark(null); setConnectedPlaylists([]); setNotice(''); }
+  function closePlayer() {
+    setPlayerOpen(false); setPlaying(false);
+    if (service === 'apple' && activeAppleTrack) getMusicKit()?.pause().catch(() => {});
+  }
+  function switchService(id) { closePlayer(); setService(id); setActiveBookmark(null); setActiveAppleTrack(null); setConnectedPlaylists([]); setNotice(''); }
   return <div className={`web-app ${theme}`}>
     <header className="site-header"><a className="brand" href="./" aria-label="Surya Player home"><span>✳</span> surya<span className="brand-accent">player</span></a><div className="header-right"><span className="live-dot" /> interactive music demo <a className="github-link" href="https://github.com/surya0901/surya-player" target="_blank" rel="noreferrer">View code ↗</a></div></header>
     <main className="workspace">
@@ -153,7 +159,7 @@ export default function WebApp() {
               <div className="playlist-pills" aria-label="Your playlists">{library.playlists.map(p => <button key={p.id} className={`playlist-pill ${playlist?.id === p.id ? 'active' : ''}`} onClick={() => choosePlaylist(p.id)}>{p.name} <span>{p.tracks.length}</span></button>)}</div>
               {playlist && <div className="playlist-editor"><div className="editor-heading"><div><span className="micro-label">NOW EDITING</span><h3>{playlist.name}</h3></div><button className="text-danger" onClick={removePlaylist}>Remove playlist</button></div>
                 <form onSubmit={addVideo} className="add-form"><label htmlFor="video-links">Add a YouTube video link</label><textarea id="video-links" placeholder={'https://www.youtube.com/watch?v=...\nPaste several links, one per line'} value={videoInput} onChange={e => setVideoInput(e.target.value)} rows={2}/><div className="form-tail"><input aria-label="Video title (optional, for one link)" placeholder="Title (optional for one link)" value={videoTitle} onChange={e => setVideoTitle(e.target.value)} maxLength={200}/><button className="solid-button">Add to playlist</button></div></form>
-                <div className="track-list">{playlist.tracks.length ? playlist.tracks.map((t, i) => <div key={t.id} className={`track-row ${trackIndex === i ? 'current' : ''}`}><button className="track-select" onClick={() => setTrackIndex(i)} aria-label={`Play ${t.title}`}><span className="track-index">{String(i + 1).padStart(2, '0')}</span><span className="track-title">{t.title}</span></button><button className="remove-track" onClick={() => removeTrack(i)} aria-label={`Remove ${t.title}`}>×</button></div>) : <p className="empty-state">Your playlist is empty. Paste a video link to start the mix.</p>}</div>
+                <div className="track-list">{playlist.tracks.length ? playlist.tracks.map((t, i) => <div key={t.id} className={`track-row ${trackIndex === i ? 'current' : ''}`}><button className="track-select" onClick={() => { setTrackIndex(i); setPlayerOpen(true); }} aria-label={`Open player for ${t.title}`}><span className="track-index">{String(i + 1).padStart(2, '0')}</span><span className="track-title">{t.title}</span></button><button className="remove-track" onClick={() => removeTrack(i)} aria-label={`Remove ${t.title}`}>×</button></div>) : <p className="empty-state">Your playlist is empty. Paste a video link to start the mix.</p>}</div>
               </div>}
             </> : <>
               <div className="card-top"><div><span className="step-number">02</span><h2>Bring a playlist</h2></div><span className="chip">{service === 'spotify' ? 'SPOTIFY' : 'APPLE MUSIC'}</span></div>
@@ -162,7 +168,7 @@ export default function WebApp() {
               <div className="connect-row"><div><strong>Connect your {service === 'spotify' ? 'Spotify' : 'Apple Music'} library</strong><small>{service === 'spotify' ? spotifyConfigured ? 'Available to accounts approved for this app' : 'Developer setup needed for account sign-in' : appleConfigured ? 'Requires an Apple Music subscription' : 'MusicKit developer setup needed'}</small></div>{service === 'spotify' ? spotifyReady ? <button className="outline-button" onClick={() => { disconnectSpotify(); setSpotifyReady(false); setConnectedPlaylists([]); }}>Disconnect</button> : <button className="outline-button" onClick={() => connectSpotify().catch(err => setNotice(err.message))} disabled={!spotifyConfigured}>Connect</button> : appleReady ? <button className="outline-button" onClick={async () => { await appleLogout(); setAppleReady(false); setConnectedPlaylists([]); setAppleLibraryTracks([]); setAppleLibraryName(''); }}>Disconnect</button> : <button className="outline-button" disabled={!appleConfigured || busy} onClick={connectApple}>Connect</button>}</div>
               {(spotifyReady || appleReady) && <div className="connected-list"><div className="section-line"><strong>Your library</strong><button onClick={service === 'spotify' ? refreshSpotify : connectApple} disabled={busy}>{busy ? 'Loading…' : 'Refresh'}</button></div>{connectedPlaylists.length ? connectedPlaylists.map(p => <button key={p.id} className="connected-item" onClick={() => service === 'apple' ? chooseAppleLibrary(p) : addConnected(p)}>{p.name}<span>↗</span></button>) : <p className="empty-state">No playlists found yet.</p>}</div>}
               {service === 'apple' && appleLibraryName && <div className="connected-list"><span className="micro-label">{appleLibraryName}</span>{appleLibraryTracks.map((track, index) => <button key={track.uri || index} className="connected-item" onClick={() => playAppleTrack(track)}>{track.title} · {track.artist}<span>▶</span></button>)}</div>}
-              <div className="saved-list"><span className="micro-label">SAVED PLAYLISTS</span>{visibleBookmarks.length ? visibleBookmarks.map(b => <div key={b.id} className="saved-row"><button onClick={() => setActiveBookmark(b)} className={activeBookmark?.id === b.id ? 'active' : ''}>{b.name}</button><button aria-label={`Remove ${b.name}`} onClick={() => { setLibrary(prev => ({ ...prev, bookmarks: prev.bookmarks.filter(x => x.id !== b.id) })); if (activeBookmark?.id === b.id) setActiveBookmark(null); }}>×</button></div>) : <p className="empty-state">Your saved playlists will appear here.</p>}</div>
+              <div className="saved-list"><span className="micro-label">SAVED PLAYLISTS</span>{visibleBookmarks.length ? visibleBookmarks.map(b => <div key={b.id} className="saved-row"><button onClick={() => { setActiveBookmark(b); setPlayerOpen(true); }} className={activeBookmark?.id === b.id ? 'active' : ''}>{b.name}</button><button aria-label={`Remove ${b.name}`} onClick={() => { setLibrary(prev => ({ ...prev, bookmarks: prev.bookmarks.filter(x => x.id !== b.id) })); if (activeBookmark?.id === b.id) setActiveBookmark(null); }}>×</button></div>) : <p className="empty-state">Your saved playlists will appear here.</p>}</div>
             </>}
             {notice && <p className="status-notice" role="status">{notice}</p>}
           </section>
@@ -170,14 +176,12 @@ export default function WebApp() {
         <aside className="player-column"><div className="player-heading"><span className="step-number">03</span><div><h2>Press play</h2><p>A tiny record shop on your screen</p></div></div>
           <div className="player-shell"><div className="pixel-window" style={{ backgroundImage: `url(${theme === 'pink' ? pinkScene : blueScene})` }}><div className="pixel-title">surya player <span>✧</span></div><img className="record-base" src={theme === 'pink' ? pinkRecord : blueRecord} alt=""/><img className={`record-vinyl ${playing ? 'spinning' : ''}`} src={theme === 'pink' ? pinkVinyl : blueVinyl} alt=""/><img className="record-needle" src={theme === 'pink' ? pinkNeedle : blueNeedle} alt=""/></div>
             <div className="player-meta"><span className="micro-label">NOW PLAYING · {service.toUpperCase()}</span><strong>{service === 'youtube' ? current?.title || 'Your next favorite song' : activeBookmark?.name || 'Choose a playlist'}</strong><span>{service === 'youtube' ? playlist?.name || 'Your playlist' : service === 'spotify' ? 'Spotify playlist' : 'Apple Music playlist'}</span></div>
-            {service === 'youtube' ? current ? <div className="player-controls"><button onClick={() => step(-1)} aria-label="Previous video">‹</button><div className="player-center">Play in the video below</div><button onClick={() => step(1)} aria-label="Next video">›</button></div> : <p className="player-hint">Choose a playlist and add a video to hear it here.</p> : <p className="player-hint">Choose a saved playlist to start its official player.</p>}
+            <button type="button" className="open-player-button" onClick={() => setPlayerOpen(true)} aria-label="Open vinyl player">↗ &nbsp; Open vinyl player</button>
             <div className="theme-switch"><span>COLORWAY</span><button onClick={() => setTheme('pink')} className={theme === 'pink' ? 'active' : ''} aria-label="Pink theme"><i className="swatch pink-swatch"/> Pink</button><button onClick={() => setTheme('blue')} className={theme === 'blue' ? 'active' : ''} aria-label="Blue theme"><i className="swatch blue-swatch"/> Blue</button></div>
           </div>
-          {service === 'youtube' && current && <div className="media-card"><YouTubePlayer key={`${playlist.id}-${current.id}`} track={current} onEnded={() => step(1)} onPlaying={setPlaying}/></div>}
-          {service !== 'youtube' && selectedEmbed && <div className="media-card"><iframe key={selectedEmbed} title={`${activeBookmark.name} player`} src={selectedEmbed} loading="lazy" allow="autoplay; encrypted-media; fullscreen" referrerPolicy="strict-origin-when-cross-origin" /></div>}
-          <p className="small-print">YouTube videos play in the official player. Spotify and Apple Music previews follow each service’s sign-in and playback rules.</p>
+          <p className="small-print">Open the vinyl player to control playback. Spotify and Apple Music use their official players inside the window.</p>
         </aside>
       </div>
-    </main><footer className="site-footer"><span>Made with ☾ and a lot of music.</span><span>Surya Player · 2026</span></footer>
+    </main>{playerOpen && <PopoutPlayer service={service} theme={theme} track={current} playlistName={service === 'youtube' ? playlist?.name : activeBookmark?.name || appleLibraryName} embedUrl={selectedEmbed} appleLibraryTrack={activeAppleTrack} playing={playing} onPlaying={setPlaying} onClose={closePlayer} onStep={step} />}<footer className="site-footer"><span>Made with ☾ and a lot of music.</span><span>Surya Player · 2026</span></footer>
   </div>;
 }
